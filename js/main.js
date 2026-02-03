@@ -14,12 +14,12 @@ const constraints = window.constraints = {
   }
 };
 // Multiplier to make fine-step adjustments a bit faster.
-const SPEED_MULT = 3;
+const SPEED_MULT = 2;
 
 // Default ranges when no camera is attached (standalone controls).
 const DEFAULT_RANGES = {
-  pan: {min: -180, max: 180, step: 0.1, value: 0},
-  tilt: {min: -90, max: 90, step: 0.1, value: 0},
+  pan: {min: -180, max: 180, step: 0.05, value: 0},
+  tilt: {min: -90, max: 90, step: 0.05, value: 0},
   zoom: {min: 1, max: 10, step: 0.1, value: 1}
 };
 
@@ -215,6 +215,35 @@ function setupKeyboardControls(track, supported) {
   if (!panSupported && !tiltSupported && !zoomSupported) return;
 
   const keyHandler = async (ev) => {
+    // Allow Enter to trigger Apply and ',' / '.' to change selected preset.
+    const presetList = document.querySelector('#presetList');
+    const applyBtn = document.querySelector('#applyPreset');
+    // If Enter pressed, trigger Apply (if available) and return.
+    if (ev.key === 'Enter') {
+      if (applyBtn && !applyBtn.disabled) {
+        ev.preventDefault();
+        applyBtn.click();
+      }
+      return;
+    }
+
+    // Handle preset selection with ',' and '.' (don't interfere while typing into other inputs)
+    if (ev.key === ',' || ev.key === '.') {
+      if (!presetList) return;
+      const active = document.activeElement;
+      const isTyping = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');
+      if (isTyping && active !== presetList) return;
+      const len = presetList.options.length;
+      if (len === 0) return;
+      ev.preventDefault();
+      const cur = Number(presetList.value) || 0;
+      let nextIdx = cur + (ev.key === '.' ? 1 : -1);
+      nextIdx = ((nextIdx % len) + len) % len;
+      presetList.value = String(nextIdx);
+      presetList.dispatchEvent(new Event('change'));
+      return;
+    }
+
     let axis = null;
     let delta = 0;
     if (ev.key === 'ArrowLeft' && panSupported) {
@@ -264,7 +293,7 @@ function handleError(error) {
   if (error.name === 'NotAllowedError') {
     errorMsg('Permissions have not been granted to use your camera, ' +
       'you need to allow the page access to your devices in ' +
-      'order for the demo to work.');
+      'order for the site to work.');
   }
   errorMsg(`getUserMedia error: ${error.name}`, error);
 }
